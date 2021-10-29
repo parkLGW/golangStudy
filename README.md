@@ -26,9 +26,103 @@ Syncd是一款开源代码部署工具
 
 
 
+
+
+---
+
+### Pprof性能分析
+
+[使用方法](https://www.jianshu.com/p/a054fda87918)：
+
+```go
+package main
+
+import (
+    // 略
+    _ "net/http/pprof" // 会自动注册 handler 到 http server，方便通过 http 接口获取程序运行采样报告
+    // 略
+)
+
+func main() {
+    // 略
+
+    runtime.GOMAXPROCS(1) // 限制 CPU 使用数，避免过载
+    runtime.SetMutexProfileFraction(1) // 开启对锁调用的跟踪
+    runtime.SetBlockProfileRate(1) // 开启对阻塞操作的跟踪
+
+    go func() {
+        // 启动一个 http server，注意 pprof 相关的 handler 已经自动注册过了
+        if err := http.ListenAndServe(":6060", nil); err != nil {
+            log.Fatal(err)
+        }
+        os.Exit(0)
+    }()
+
+    // 略
+}
+```
+
+保持程序运行，然后在浏览器访问http://localhost:6060/debug/pprof
+
+![image-20210727103102762](D:\docs\golangStudy\README.assets\image-20210727103102762.png)
+
+![image-20210827135018589](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210827135018589.png)
+
+通过在终端输入命令`go tool pprof http://localhost:6060/debug/pprof/heap ` 
+
+**输入top 显示内存占用情况**：
+
+![image-20210727110731838](D:\docs\golangStudy\README.assets\image-20210727110731838.png)
+
+**输入list 函数查看详细占用信息**：
+
+![image-20210727110850161](D:\docs\golangStudy\README.assets\image-20210727110850161.png)
+
+**输入web 查看图形化显示**
+
+![image-20210727111034945](D:\docs\golangStudy\README.assets\image-20210727111034945.png)
+
+---
+
 ### Delve调试工具
 
+Delve 是一款很不错的 Golang 调试工具，可以实现类似 Visual Studio 的断点调试功能，也可以用来在程序 Crash 的时候生成 Coredump 文件，此外 Delve 也适合用于调试 Web Server。在服务挂住的时候，pprof可能就用不了了，delve可用于解决pprof无法适用的情况。[github地址](https://github.com/go-delve/delve)
 
+添加GOPATH到环境变量后，通过`go get -u github.com/go-delve/delve/cmd/dlv`进行安装
+
+主要指令：
+
+* dlv attach {pid}
+
+  - bt列出当前线程的调用栈
+
+    ![img](D:\docs\golangStudy\README.assets\-16354954214881.assets)
+
+  
+
+  - 查看调用栈详细信息
+
+    ![img](D:\docs\golangStudy\README.assets\-16354954237543.assets)
+
+  
+
+  - 通过`frame 0`查看id为0的栈的源码部分
+
+    
+
+  - 列出该服务下的所有协程
+
+    ![img](D:\docs\golangStudy\README.assets\-16354954261905.assets)
+
+  - 通过`gr 10`切换到10号协程
+
+* `dlv debug`后面跟要调试的go文件，进入debug。如`dlv debug ./main.go`
+
+  ![image-20211029155647385](D:\docs\golangStudy\README.assets\image-20211029155647385.png)
+
+
+
+*****
 
 
 
@@ -155,7 +249,7 @@ sed -i '1,/DROP TABLE/s/`test`/`test_db`/g' test.sql
 
   > 查询a和b的交集
 
-  <img src="C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210929110823257.png" alt="image-20210929110823257" style="zoom:100%;" />
+  <img src="D:\docs\golangStudy\README.assets\image-20210929110823257.png" alt="image-20210929110823257" style="zoom:100%;" />
 
 * 左外连接（left outer join）
 
@@ -165,7 +259,7 @@ sed -i '1,/DROP TABLE/s/`test`/`test_db`/g' test.sql
 
   > 查询a的完全集，而b中匹配的则有值，不匹配的用null代替
 
-  ![image-20210929110955220](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210929110955220.png)
+  ![image-20210929110955220](D:\docs\golangStudy\README.assets\image-20210929110955220.png)
 
 * 右外连接（right outer join）
 
@@ -175,7 +269,7 @@ sed -i '1,/DROP TABLE/s/`test`/`test_db`/g' test.sql
 
   > 查询b的完全集，a中匹配的则有值，不匹配则用null代替
 
-  ![image-20210929111122546](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210929111122546.png)
+  ![image-20210929111122546](D:\docs\golangStudy\README.assets\image-20210929111122546.png)
 
 * 全连接（union）
 
@@ -187,7 +281,7 @@ sed -i '1,/DROP TABLE/s/`test`/`test_db`/g' test.sql
 
   > 左右外连接的并集，连接表包含被连接表的所有记录
 
-  ![image-20210929111355422](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210929111355422.png)
+  ![image-20210929111355422](D:\docs\golangStudy\README.assets\image-20210929111355422.png)
 
 * 交叉连接（cross join）
 
@@ -200,6 +294,14 @@ sed -i '1,/DROP TABLE/s/`test`/`test_db`/g' test.sql
 
 
 * **Q1.**select * sort 查询时报Out of sort memory, consider increasing server sort buffer size，可能某个字段内容过大，如果不需要该字段可查询特定字段
+
+
+
+#### 数据库连接池
+
+[参考](https://blog.csdn.net/qq_42093488/article/details/113239123)
+
+
 
 ### golang 相关
 
@@ -353,7 +455,6 @@ default:
   * 服务名字
   * 服务要实现的详细方法列表
   * 这侧该类型服务的函数
-  
 
 #### WaitGroup并发控制
 
@@ -370,58 +471,6 @@ type WaitGroup struct {
 	sema   uint32
 }
 ```
-
-#### pprof性能分析
-
-[使用方法](https://www.jianshu.com/p/a054fda87918)：
-
-```go
-package main
-
-import (
-    // 略
-    _ "net/http/pprof" // 会自动注册 handler 到 http server，方便通过 http 接口获取程序运行采样报告
-    // 略
-)
-
-func main() {
-    // 略
-
-    runtime.GOMAXPROCS(1) // 限制 CPU 使用数，避免过载
-    runtime.SetMutexProfileFraction(1) // 开启对锁调用的跟踪
-    runtime.SetBlockProfileRate(1) // 开启对阻塞操作的跟踪
-
-    go func() {
-        // 启动一个 http server，注意 pprof 相关的 handler 已经自动注册过了
-        if err := http.ListenAndServe(":6060", nil); err != nil {
-            log.Fatal(err)
-        }
-        os.Exit(0)
-    }()
-
-    // 略
-}
-```
-
-保持程序运行，然后在浏览器访问http://localhost:6060/debug/pprof
-
-![image-20210727103102762](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210727103102762.png)
-
-![image-20210827135018589](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210827135018589.png)
-
-通过在终端输入命令`go tool pprof http://localhost:6060/debug/pprof/heap ` 
-
-**输入top 显示内存占用情况**：
-
-![image-20210727110731838](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210727110731838.png)
-
-**输入list 函数查看详细占用信息**：
-
-![image-20210727110850161](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210727110850161.png)
-
-**输入web 查看图形化显示**
-
-![image-20210727111034945](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210727111034945.png)
 
 #### [Context上下文机制](https://www.cnblogs.com/zhangboyu/p/7456606.html)
 
@@ -662,13 +711,13 @@ zookeeper是一个为分布式应用提供一致性服务的开源组件，它�
 
 **架构介绍**
 
-![image-20210612143051457](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210612143051457.png)
+![image-20210612143051457](D:\docs\golangStudy\README.assets\image-20210612143051457.png)
 
 
 
 **工作流程**
 
-![](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20210612142636317.png)
+![](D:\docs\golangStudy\README.assets\image-20210612142636317.png)
 
 ```
     1.⽣产者从Kafka集群获取分区leader信息
@@ -753,7 +802,7 @@ bool查询提供了4个语句，must/filter/should/must_not，其中filter/must_
    会把多个字段的匹配转换成多个match查询组合，挨个对字段进行match查询。match 执行查询时，先把查询关键词经过 search_analyzer 设置的分析器分析，再把分析器得到的结果挨个放进 bool 查询中的 should 语句，这些 should 没有权重与顺序的差别，并且只要命中一个should 语句的文档都会被返回
 
 
-   
+
 
 2. bool查询的filter
 
@@ -761,7 +810,7 @@ bool查询提供了4个语句，must/filter/should/must_not，其中filter/must_
 
    要求必须命中所有分词，并且返回的文档命中的词也要按照查询短语的顺序，词的间距可以使用slop设置。slop参数告诉match_phrase查询词条相隔多远时仍能将文档视为匹配
 
-   ![image-20211012111622701](C:\Users\gavin\AppData\Roaming\Typora\typora-user-images\image-20211012111622701.png)
+   ![image-20211012111622701](D:\docs\golangStudy\README.assets\image-20211012111622701.png)
 
 4. boost调整权重
 
@@ -872,8 +921,6 @@ for(size_t i = 1; i < 15; i++)
 
 
 #### AC自动机
-
-
 
 
 
